@@ -1,209 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🌾 AgroMind — Smart Storage Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌾 AgroMind — Smart Storage Dashboard</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
-
-<!-- MQTT over WebSocket -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-<!-- Feather Icons -->
-<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-
-<style>
-body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
-.card { background-color: #1e293b; border:1px solid #334155; border-radius:.75rem; padding:1.5rem; box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1); transition: all .3s ease-in-out;}
-.card:hover { transform: translateY(-4px); box-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1);}
-.btn { transition: all .2s ease; }
-.btn:active { transform: scale(0.95);}
-.status-dot { width:12px; height:12px; border-radius:50%; transition: background-color .5s ease;}
-.status-dot-connected { background-color:#22c55e; box-shadow:0 0 8px #22c55e; }
-.status-dot-disconnected { background-color:#ef4444; }
-canvas { width:100% !important; height:auto !important; }
-</style>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); transition: all 0.3s ease-in-out; }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+        .btn { transition: all 0.2s ease; }
+        .btn:active { transform: scale(0.95); }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; transition: background-color 0.5s ease; }
+        .status-dot-connected { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .status-dot-disconnected { background-color: #ef4444; }
+        canvas { width: 100% !important; height: auto !important; }
+    </style>
 </head>
 <body class="antialiased">
 
 <div class="min-h-screen p-4 sm:p-6 lg:p-8">
-  <div class="max-w-7xl mx-auto">
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-100 flex items-center">
+                <span class="text-4xl mr-3">🌾</span> AgroMind — Smart Storage Dashboard
+            </h1>
+            <p class="text-slate-400 mt-1">Real-time monitoring and control for optimal crop preservation.</p>
+        </header>
+        
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-    <!-- Header -->
-    <header class="mb-8">
-      <h1 class="text-3xl md:text-4xl font-bold text-slate-100 flex items-center">
-        <span class="text-4xl mr-3">🌾</span> AgroMind — Smart Storage Dashboard
-      </h1>
-      <p class="text-slate-400 mt-1">Real-time monitoring and control for optimal crop preservation.</p>
-    </header>
+            <div class="lg:col-span-1 space-y-6">
+                <div class="card">
+                    <h2 class="text-xl font-semibold text-slate-200 mb-4">Connection Status</h2>
+                    <div class="flex items-center space-x-3">
+                        <div id="status-dot" class="status-dot status-dot-disconnected"></div>
+                        <span id="connection-status" class="font-medium text-slate-300">Connecting...</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">Broker: broker.hivemq.com:8000 (WS)</p>
+                </div>
 
-    <!-- Grid Layout -->
-    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      <!-- Left Panel -->
-      <div class="lg:col-span-1 space-y-6">
-        <div class="card">
-          <h2 class="text-xl font-semibold text-slate-200 mb-4">Connection Status</h2>
-          <div class="flex items-center space-x-3">
-            <div id="status-dot" class="status-dot status-dot-disconnected"></div>
-            <span id="connection-status" class="font-medium text-slate-300">Connecting...</span>
-          </div>
-          <p class="text-xs text-slate-500 mt-2">Broker: broker.hivemq.com:8000</p>
-        </div>
-
-        <div class="card">
-          <h2 class="text-xl font-semibold text-slate-200 mb-4">Live Sensor Data</h2>
-          <div class="space-y-5">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <i data-feather="thermometer" class="w-6 h-6 text-blue-400"></i>
-                <span class="text-lg text-slate-300">Temperature</span>
-              </div>
-              <span id="temp-value" class="text-2xl font-bold text-blue-300">- °C</span>
+                <div class="card">
+                    <h2 class="text-xl font-semibold text-slate-200 mb-4">Live Sensor Data</h2>
+                    <div class="space-y-5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <i data-feather="thermometer" class="w-6 h-6 text-blue-400"></i>
+                                <span class="text-lg text-slate-300">Temperature</span>
+                            </div>
+                            <span id="temp-value" class="text-2xl font-bold text-blue-300">- °C</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <i data-feather="droplet" class="w-6 h-6 text-green-400"></i>
+                                <span class="text-lg text-slate-300">Humidity</span>
+                            </div>
+                            <span id="hum-value" class="text-2xl font-bold text-green-300">- %</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <i data-feather="calendar" class="w-6 h-6 text-amber-400"></i>
+                                <span class="text-lg text-slate-300">Predicted Storage</span>
+                            </div>
+                            <span id="days-value" class="text-2xl font-bold text-amber-300">- Days</span>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-700 mt-5 pt-3 text-right">
+                        <p class="text-xs text-slate-500">Last update: <span id="last-update">N/A</span></p>
+                    </div>
+                </div>
             </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <i data-feather="droplet" class="w-6 h-6 text-green-400"></i>
-                <span class="text-lg text-slate-300">Humidity</span>
-              </div>
-              <span id="hum-value" class="text-2xl font-bold text-green-300">- %</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <i data-feather="calendar" class="w-6 h-6 text-amber-400"></i>
-                <span class="text-lg text-slate-300">Predicted Storage</span>
-              </div>
-              <span id="days-value" class="text-2xl font-bold text-amber-300">- Days</span>
-            </div>
-          </div>
-          <div class="border-t border-slate-700 mt-5 pt-3 text-right">
-            <p class="text-xs text-slate-500">Last update: <span id="last-update">N/A</span></p>
-          </div>
-        </div>
-      </div>
 
-      <!-- Center Panel -->
-      <div class="lg:col-span-2 space-y-6">
-        <div class="card">
-          <h2 class="text-xl font-semibold text-slate-200 mb-4">Temperature Trend (°C)</h2>
-          <div class="h-64"><canvas id="tempChart"></canvas></div>
-        </div>
-        <div class="card">
-          <h2 class="text-xl font-semibold text-slate-200 mb-4">Humidity Trend (%)</h2>
-          <div class="h-64"><canvas id="humChart"></canvas></div>
-        </div>
-      </div>
+            <div class="lg:col-span-2 space-y-6">
+                <div class="card">
+                    <h2 class="text-xl font-semibold text-slate-200 mb-4">Temperature Trend (°C)</h2>
+                    <div class="h-64"><canvas id="tempChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h2 class="text-xl font-semibold text-slate-200 mb-4">Humidity Trend (%)</h2>
+                    <div class="h-64"><canvas id="humChart"></canvas></div>
+                </div>
+            </div>
 
-      <!-- Right Panel: LED & Market -->
-      <div class="lg:col-span-3 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="card md:col-span-2 lg:col-span-1">
-          <h2 class="text-xl font-semibold text-slate-200 mb-4">LED Control</h2>
-          <div class="flex items-center justify-between mb-4">
-            <span class="text-slate-300">Device Status:</span>
-            <span id="led-status" class="px-3 py-1 text-sm font-bold rounded-full bg-slate-700 text-slate-300">UNKNOWN</span>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <button onclick="publishMessage('ON')" class="btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">ON</button>
-            <button onclick="publishMessage('OFF')" class="btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">OFF</button>
-            <button onclick="publishMessage('TOGGLE')" class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">TOGGLE</button>
-            <button onclick="publishMessage('STATUS')" class="btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md">STATUS</button>
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
+            <div class="lg:col-span-3 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="card md:col-span-2 lg:col-span-1">
+                    <h2 class="text-xl font-semibold text-slate-200 mb-4">LED Control</h2>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-slate-300">Device Status:</span>
+                        <span id="led-status" class="px-3 py-1 text-sm font-bold rounded-full bg-slate-700 text-slate-300">UNKNOWN</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="publishMessage('ON')" class="btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">ON</button>
+                        <button onclick="publishMessage('OFF')" class="btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">OFF</button>
+                        <button onclick="publishMessage('TOGGLE')" class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">TOGGLE</button>
+                        <button onclick="publishMessage('STATUS')" class="btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md">STATUS</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 </div>
 
 <script>
-const TEMP_TOPIC = "esp32/dht/temp";
-const HUM_TOPIC = "esp32/dht/hum";
-const DAYS_TOPIC = "esp32/storage/days";
-const LED_STATE_TOPIC = "esp32/led/state";
-const LED_CONTROL_TOPIC = "esp32/led";
-const MAX_DATA_POINTS = 20;
+    feather.replace();
 
-const statusDot = document.getElementById('status-dot');
-const connectionStatus = document.getElementById('connection-status');
-const tempValue = document.getElementById('temp-value');
-const humValue = document.getElementById('hum-value');
-const daysValue = document.getElementById('days-value');
-const ledStatus = document.getElementById('led-status');
-const lastUpdate = document.getElementById('last-update');
+    // --- MQTT (WebSocket) ---
+    const MQTT_BROKER = "broker.hivemq.com";
+    const MQTT_PORT = 8000; // WS port
+    const CLIENT_ID = "WebClient_" + Math.floor(Math.random()*10000);
 
-// MQTT over WebSocket
-const clientId = "webClient_" + Math.floor(Math.random()*10000);
-const client = new Paho.MQTT.Client("broker.hivemq.com", 8000, "/mqtt", clientId);
+    const TEMP_TOPIC = "esp32/dht/temp";
+    const HUM_TOPIC = "esp32/dht/hum";
+    const DAYS_TOPIC = "esp32/storage/days";
+    const LED_STATE_TOPIC = "esp32/led/state";
+    const LED_CONTROL_TOPIC = "esp32/led";
 
-client.onConnectionLost = function(responseObject) {
-  statusDot.className = 'status-dot status-dot-disconnected';
-  connectionStatus.innerText = 'Disconnected';
-};
+    const statusDot = document.getElementById('status-dot');
+    const connectionStatus = document.getElementById('connection-status');
+    const tempValue = document.getElementById('temp-value');
+    const humValue = document.getElementById('hum-value');
+    const daysValue = document.getElementById('days-value');
+    const ledStatus = document.getElementById('led-status');
+    const lastUpdate = document.getElementById('last-update');
 
-client.onMessageArrived = function(message) {
-  const topic = message.destinationName;
-  const payload = message.payloadString;
+    const client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, "/ws", CLIENT_ID);
 
-  if (topic === TEMP_TOPIC) {
-    tempValue.innerText = payload + " °C";
-    addData(tempChart, payload);
-  } else if (topic === HUM_TOPIC) {
-    humValue.innerText = payload + " %";
-    addData(humChart, payload);
-  } else if (topic === DAYS_TOPIC) {
-    daysValue.innerText = payload + " Days";
-  } else if (topic === LED_STATE_TOPIC) {
-    ledStatus.innerText = payload;
-    ledStatus.className = 'px-3 py-1 text-sm font-bold rounded-full ' + (payload === "ON" ? 'bg-green-600' : 'bg-red-600');
-  }
-  lastUpdate.innerText = new Date().toLocaleTimeString();
-};
+    client.onConnectionLost = function(responseObject) {
+        statusDot.className = 'status-dot status-dot-disconnected';
+        connectionStatus.textContent = "Disconnected";
+        console.log("Connection lost:", responseObject.errorMessage);
+        setTimeout(() => client.connect({onSuccess:onConnect}), 2000);
+    };
 
-client.connect({
-  onSuccess: function() {
-    statusDot.className = 'status-dot status-dot-connected';
-    connectionStatus.innerText = 'Connected';
-    client.subscribe(TEMP_TOPIC);
-    client.subscribe(HUM_TOPIC);
-    client.subscribe(DAYS_TOPIC);
-    client.subscribe(LED_STATE_TOPIC);
-  }
-});
+    client.onMessageArrived = function(message) {
+        const topic = message.destinationName;
+        const payload = message.payloadString;
+        lastUpdate.textContent = new Date().toLocaleTimeString();
 
-function publishMessage(msg) {
-  const message = new Paho.MQTT.Message(msg);
-  message.destinationName = LED_CONTROL_TOPIC;
-  client.send(message);
-}
+        if(topic === TEMP_TOPIC) tempValue.textContent = payload + " °C";
+        else if(topic === HUM_TOPIC) humValue.textContent = payload + " %";
+        else if(topic === DAYS_TOPIC) daysValue.textContent = payload + " Days";
+        else if(topic === LED_STATE_TOPIC) updateLedStatus(payload);
+    };
 
-// Chart.js setup
-function createChart(ctx, label, color) {
-  return new Chart(ctx, {
-    type: 'line',
-    data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'33', tension: 0.4 }] },
-    options: { responsive:true, animation:false, scales:{x:{display:true},y:{beginAtZero:true}} }
-  });
-}
+    function onConnect() {
+        console.log("Connected to MQTT WS broker!");
+        statusDot.className = 'status-dot status-dot-connected';
+        connectionStatus.textContent = "Connected";
 
-function addData(chart, data) {
-  chart.data.labels.push(new Date().toLocaleTimeString());
-  chart.data.datasets[0].data.push(parseFloat(data));
-  if(chart.data.labels.length > MAX_DATA_POINTS) {
-    chart.data.labels.shift();
-    chart.data.datasets[0].data.shift();
-  }
-  chart.update();
-}
+        client.subscribe(TEMP_TOPIC);
+        client.subscribe(HUM_TOPIC);
+        client.subscribe(DAYS_TOPIC);
+        client.subscribe(LED_STATE_TOPIC);
 
-const tempChart = createChart(document.getElementById('tempChart').getContext('2d'), 'Temperature °C', '#3b82f6');
-const humChart = createChart(document.getElementById('humChart').getContext('2d'), 'Humidity %', '#10b981');
+        publishMessage("STATUS");
+    }
 
-feather.replace();
+    function publishMessage(msg) {
+        const message = new Paho.MQTT.Message(msg);
+        message.destinationName = LED_CONTROL_TOPIC;
+        client.send(message);
+    }
+
+    function updateLedStatus(state) {
+        ledStatus.textContent = state;
+        if(state.toUpperCase()==="ON") ledStatus.className = 'px-3 py-1 text-sm font-bold rounded-full bg-green-500 text-white';
+        else if(state.toUpperCase()==="OFF") ledStatus.className = 'px-3 py-1 text-sm font-bold rounded-full bg-red-500 text-white';
+        else ledStatus.className = 'px-3 py-1 text-sm font-bold rounded-full bg-slate-700 text-slate-300';
+    }
+
+    client.connect({onSuccess:onConnect});
 </script>
-
 </body>
 </html>
