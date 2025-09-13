@@ -5,25 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌾 AgroMind — Smart Storage Dashboard</title>
 
-<!-- Tailwind CSS -->
+<!-- Tailwind CSS & Libraries -->
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- Paho MQTT over WebSocket -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<!-- Feather Icons -->
 <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
 
 <style>
-body { font-family: 'Inter', sans-serif; background-color:#0f172a; color:#e2e8f0; }
-.card { background:#1e293b; border:1px solid #334155; border-radius:.75rem; padding:1.5rem; box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1),0 2px 4px -2px rgb(0 0 0 / 0.1); transition:.3s; }
-.card:hover { transform:translateY(-4px); box-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1),0 4px 6px -4px rgb(0 0 0 / 0.1); }
-.btn { transition:.2s; }
-.btn:active { transform:scale(0.95); }
-.status-dot { width:12px; height:12px; border-radius:50%; transition:background-color .5s ease; }
-.status-dot-connected { background-color:#22c55e; box-shadow:0 0 8px #22c55e; }
-.status-dot-disconnected { background-color:#ef4444; }
-canvas { width:100% !important; height:auto !important; }
+body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+.card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); transition: all 0.3s ease-in-out; }
+.card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+.btn { transition: all 0.2s ease; }
+.btn:active { transform: scale(0.95); }
+.status-dot { width: 12px; height: 12px; border-radius: 50%; transition: background-color 0.5s ease; }
+.status-dot-connected { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+.status-dot-disconnected { background-color: #ef4444; }
+canvas { width: 100% !important; height: auto !important; }
 </style>
 </head>
 <body class="antialiased">
@@ -32,13 +29,15 @@ canvas { width:100% !important; height:auto !important; }
 <div class="max-w-7xl mx-auto">
 
 <header class="mb-8">
-<h1 class="text-3xl md:text-4xl font-bold text-slate-100 flex items-center"><span class="text-4xl mr-3">🌾</span> AgroMind — Smart Storage Dashboard</h1>
+<h1 class="text-3xl md:text-4xl font-bold text-slate-100 flex items-center">
+<span class="text-4xl mr-3">🌾</span> AgroMind — Smart Storage Dashboard
+</h1>
 <p class="text-slate-400 mt-1">Real-time monitoring and control for optimal crop preservation.</p>
 </header>
 
 <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-<!-- Left Panel: Status & Sensor -->
+<!-- Left Panel -->
 <div class="lg:col-span-1 space-y-6">
 <div class="card">
 <h2 class="text-xl font-semibold text-slate-200 mb-4">Connection Status</h2>
@@ -46,22 +45,31 @@ canvas { width:100% !important; height:auto !important; }
 <div id="status-dot" class="status-dot status-dot-disconnected"></div>
 <span id="connection-status" class="font-medium text-slate-300">Connecting...</span>
 </div>
-<p class="text-xs text-slate-500 mt-2">Broker: broker.hivemq.com:8000 (WebSocket)</p>
+<p class="text-xs text-slate-500 mt-2">Broker: broker.hivemq.com:8000 (WS)</p>
 </div>
 
 <div class="card">
 <h2 class="text-xl font-semibold text-slate-200 mb-4">Live Sensor Data</h2>
 <div class="space-y-5">
 <div class="flex items-center justify-between">
-<div class="flex items-center space-x-3"><i data-feather="thermometer" class="w-6 h-6 text-blue-400"></i><span class="text-lg text-slate-300">Temperature</span></div>
+<div class="flex items-center space-x-3">
+<i data-feather="thermometer" class="w-6 h-6 text-blue-400"></i>
+<span class="text-lg text-slate-300">Temperature</span>
+</div>
 <span id="temp-value" class="text-2xl font-bold text-blue-300">- °C</span>
 </div>
 <div class="flex items-center justify-between">
-<div class="flex items-center space-x-3"><i data-feather="droplet" class="w-6 h-6 text-green-400"></i><span class="text-lg text-slate-300">Humidity</span></div>
+<div class="flex items-center space-x-3">
+<i data-feather="droplet" class="w-6 h-6 text-green-400"></i>
+<span class="text-lg text-slate-300">Humidity</span>
+</div>
 <span id="hum-value" class="text-2xl font-bold text-green-300">- %</span>
 </div>
 <div class="flex items-center justify-between">
-<div class="flex items-center space-x-3"><i data-feather="calendar" class="w-6 h-6 text-amber-400"></i><span class="text-lg text-slate-300">Predicted Storage</span></div>
+<div class="flex items-center space-x-3">
+<i data-feather="calendar" class="w-6 h-6 text-amber-400"></i>
+<span class="text-lg text-slate-300">Predicted Storage</span>
+</div>
 <span id="days-value" class="text-2xl font-bold text-amber-300">- Days</span>
 </div>
 </div>
@@ -71,7 +79,7 @@ canvas { width:100% !important; height:auto !important; }
 </div>
 </div>
 
-<!-- Center Panel: Charts -->
+<!-- Center Panel -->
 <div class="lg:col-span-2 space-y-6">
 <div class="card">
 <h2 class="text-xl font-semibold text-slate-200 mb-4">Temperature Trend (°C)</h2>
@@ -83,7 +91,7 @@ canvas { width:100% !important; height:auto !important; }
 </div>
 </div>
 
-<!-- Right Panel: LED & CSV -->
+<!-- Right Panel -->
 <div class="lg:col-span-3 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 <div class="card md:col-span-2 lg:col-span-1">
 <h2 class="text-xl font-semibold text-slate-200 mb-4">LED Control</h2>
@@ -100,22 +108,30 @@ canvas { width:100% !important; height:auto !important; }
 </div>
 
 <div class="card">
+<h2 class="text-xl font-semibold text-slate-200 mb-4">Market Data</h2>
+<label for="market-price" class="block text-sm font-medium text-slate-400">Enter Market Price (₹/kg)</label>
+<div class="mt-1 flex rounded-md shadow-sm">
+<input type="number" name="market-price" id="market-price" class="flex-1 block w-full rounded-none rounded-l-md bg-slate-900 border-slate-600 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2" placeholder="150.75">
+<button class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-slate-600 bg-slate-700 text-slate-300 hover:bg-slate-600">Log</button>
+</div>
+<p class="text-xs text-slate-500 mt-4">Short-term price prediction: <span class="text-green-400">Trending Up</span></p>
+</div>
+
+<div class="card">
 <h2 class="text-xl font-semibold text-slate-200 mb-4">Data Export</h2>
 <p class="text-slate-400 mb-4 text-sm">Export the collected sensor data as a CSV file.</p>
 <button id="export-csv-btn" class="w-full btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center space-x-2">
-<i data-feather="download" class="w-5 h-5"></i><span>Export to CSV</span>
+<i data-feather="download" class="w-5 h-5"></i>
+<span>Export to CSV</span>
 </button>
 </div>
-
 </div>
+
 </main>
 </div>
 </div>
 
 <script>
-feather.replace(); // Icons
-
-// DOM Elements
 const statusDot = document.getElementById('status-dot');
 const connectionStatus = document.getElementById('connection-status');
 const tempValue = document.getElementById('temp-value');
@@ -125,125 +141,84 @@ const ledStatus = document.getElementById('led-status');
 const lastUpdate = document.getElementById('last-update');
 const exportCsvBtn = document.getElementById('export-csv-btn');
 
-const MQTT_BROKER = "broker.hivemq.com";
-const MQTT_PORT = 8000; // WebSocket port
-const MQTT_CLIENT_ID = "AgroMindDashboard_" + Math.random().toString(16).substr(2, 8);
 const TEMP_TOPIC = "esp32/dht/temp";
 const HUM_TOPIC = "esp32/dht/hum";
 const DAYS_TOPIC = "esp32/storage/days";
 const LED_STATE_TOPIC = "esp32/led/state";
 const LED_CONTROL_TOPIC = "esp32/led";
 
-let client;
 let tempChart, humChart;
 const MAX_DATA_POINTS = 20;
 
-// Charts
-function initializeCharts() {
-  Chart.defaults.color = 'rgba(226, 232, 240, 0.8)';
-  Chart.defaults.borderColor = 'rgba(51, 65, 85, 0.5)';
+// MQTT over WebSocket
+const clientId = "webClient_" + Math.floor(Math.random()*10000);
+const client = new Paho.MQTT.Client("broker.hivemq.com", 8000, "/mqtt", clientId);
 
-  const chartConfig = (label, borderColor, backgroundColor) => ({
-    type: 'line',
-    data: { labels: [], datasets: [{ label, data: [], borderColor, backgroundColor, tension: 0.4, fill:true }] },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      scales:{ x:{grid:{display:false}}, y:{beginAtZero:false,grid:{color:'rgba(51, 65, 85, 0.8)'}} },
-      plugins:{ legend:{display:false} }
-    }
-  });
+client.onConnectionLost = function(responseObject) {
+  statusDot.className = 'status-dot status-dot-disconnected';
+  connectionStatus.innerText = 'Disconnected';
+};
 
-  tempChart = new Chart(document.getElementById('tempChart').getContext('2d'), chartConfig('Temperature', 'rgba(96, 165, 250, 1)', 'rgba(96, 165, 250, 0.1)'));
-  humChart  = new Chart(document.getElementById('humChart').getContext('2d'), chartConfig('Humidity', 'rgba(52, 211, 153, 1)', 'rgba(52, 211, 153, 0.1)'));
-}
-
-function updateChart(chart, value) {
-  const now = new Date();
-  const timeLabel = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-  chart.data.labels.push(timeLabel);
-  chart.data.datasets[0].data.push(value);
-  if(chart.data.labels.length>MAX_DATA_POINTS){ chart.data.labels.shift(); chart.data.datasets[0].data.shift(); }
-  chart.update();
-}
-
-// MQTT
-function connectMQTT() {
-  client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID);
-  client.onConnectionLost = onConnectionLost;
-  client.onMessageArrived = onMessageArrived;
-
-  client.connect({ onSuccess:onConnect, useSSL:false, cleanSession:true });
-}
-
-function onConnect() {
-  console.log("Connected to MQTT Broker!");
-  updateConnectionStatus(true);
-  client.subscribe(TEMP_TOPIC);
-  client.subscribe(HUM_TOPIC);
-  client.subscribe(DAYS_TOPIC);
-  client.subscribe(LED_STATE_TOPIC);
-  publishMessage("STATUS");
-}
-
-function onConnectionLost(response) {
-  console.log("Connection lost:", response.errorMessage);
-  updateConnectionStatus(false);
-  setTimeout(connectMQTT, 3000); // retry
-}
-
-function updateConnectionStatus(isConnected){
-  if(isConnected){ statusDot.classList.replace('status-dot-disconnected','status-dot-connected'); connectionStatus.textContent='Connected'; }
-  else{ statusDot.classList.replace('status-dot-connected','status-dot-disconnected'); connectionStatus.textContent='Disconnected'; }
-}
-
-function onMessageArrived(message){
+client.onMessageArrived = function(message) {
   const topic = message.destinationName;
   const payload = message.payloadString;
-  lastUpdate.textContent = new Date().toLocaleTimeString();
 
-  switch(topic){
-    case TEMP_TOPIC: tempValue.textContent = `${parseFloat(payload).toFixed(2)} °C`; updateChart(tempChart, parseFloat(payload)); break;
-    case HUM_TOPIC: humValue.textContent = `${parseFloat(payload).toFixed(2)} %`; updateChart(humChart, parseFloat(payload)); break;
-    case DAYS_TOPIC: daysValue.textContent = `${parseInt(payload)} Days`; break;
-    case LED_STATE_TOPIC: updateLedStatus(payload); break;
+  if (topic === TEMP_TOPIC) {
+    tempValue.innerText = payload + " °C";
+    addData(tempChart, payload);
+  } else if (topic === HUM_TOPIC) {
+    humValue.innerText = payload + " %";
+    addData(humChart, payload);
+  } else if (topic === DAYS_TOPIC) {
+    daysValue.innerText = payload + " Days";
+  } else if (topic === LED_STATE_TOPIC) {
+    ledStatus.innerText = payload;
+    ledStatus.className = 'px-3 py-1 text-sm font-bold rounded-full ' + (payload === "ON" ? 'bg-green-600' : 'bg-red-600');
   }
-}
+  lastUpdate.innerText = new Date().toLocaleTimeString();
+};
 
-function publishMessage(payload){
-  if(!client || !client.isConnected()){ alert("Not connected to MQTT broker!"); return; }
-  const message = new Paho.MQTT.Message(payload);
+client.connect({
+  onSuccess: function() {
+    statusDot.className = 'status-dot status-dot-connected';
+    connectionStatus.innerText = 'Connected';
+    client.subscribe(TEMP_TOPIC);
+    client.subscribe(HUM_TOPIC);
+    client.subscribe(DAYS_TOPIC);
+    client.subscribe(LED_STATE_TOPIC);
+  }
+});
+
+function publishMessage(msg) {
+  const message = new Paho.MQTT.Message(msg);
   message.destinationName = LED_CONTROL_TOPIC;
   client.send(message);
 }
 
-function updateLedStatus(state){
-  ledStatus.textContent = state;
-  if(state.toUpperCase() === 'ON') ledStatus.className='px-3 py-1 text-sm font-bold rounded-full bg-green-500 text-white';
-  else if(state.toUpperCase() === 'OFF') ledStatus.className='px-3 py-1 text-sm font-bold rounded-full bg-red-500 text-white';
-  else ledStatus.className='px-3 py-1 text-sm font-bold rounded-full bg-slate-700 text-slate-300';
+// Chart.js setup
+function createChart(ctx, label, color) {
+  return new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'33', tension: 0.4 }] },
+    options: { responsive:true, animation:false, scales:{x:{display:true},y:{beginAtZero:true}} }
+  });
 }
 
-// CSV Export
-function exportToCSV(){
-  const headers = "Timestamp,Temperature_C,Humidity_Percent";
-  const tempData = tempChart.data.datasets[0].data;
-  const humData  = humChart.data.datasets[0].data;
-  const labels   = tempChart.data.labels;
-  if(labels.length===0){ alert("No data to export!"); return; }
-  let csvContent = "data:text/csv;charset=utf-8,"+headers+"\n";
-  for(let i=0;i<labels.length;i++){ csvContent+=[labels[i],tempData[i]||'N/A',humData[i]||'N/A'].join(",")+"\n"; }
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href",encodedUri);
-  link.setAttribute("download",`agromind_data_${new Date().toISOString().slice(0,10)}.csv`);
-  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+function addData(chart, data) {
+  chart.data.labels.push(new Date().toLocaleTimeString());
+  chart.data.datasets[0].data.push(parseFloat(data));
+  if(chart.data.labels.length > MAX_DATA_POINTS) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
+  chart.update();
 }
 
-window.onload = () => {
-  initializeCharts();
-  connectMQTT();
-  exportCsvBtn.addEventListener('click', exportToCSV);
-};
+tempChart = createChart(document.getElementById('tempChart').getContext('2d'), 'Temperature °C', '#3b82f6');
+humChart = createChart(document.getElementById('humChart').getContext('2d'), 'Humidity %', '#10b981');
+
+// Feather icons
+feather.replace();
 </script>
 
 </body>
