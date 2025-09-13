@@ -1,128 +1,255 @@
-#include <WiFi.h>
-#include <ESPAsyncWebServer.h>
-#include "DHT.h"
-
-// ======= CONFIG =======
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
-
-#define DHTPIN 15
-#define DHTTYPE DHT22  // or DHT11
-#define LEDPIN 13
-
-DHT dht(DHTPIN, DHTTYPE);
-AsyncWebServer server(80);
-
-// ======= SENSOR DATA =======
-float temperature = 0;
-float humidity = 0;
-int predictedDays = 10; // dummy value, you can add your own logic
-
-// ======= HTML PAGE =======
-const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>🌾 AgroMind ESP32 Dashboard</title>
-  <style>
-    body { font-family: Arial; text-align: center; background: #0f172a; color: #e2e8f0; }
-    .card { background: #1e293b; padding: 20px; margin: 20px auto; border-radius: 10px; max-width: 400px; }
-    button { padding: 10px 20px; margin: 5px; font-size: 16px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌾 AgroMind — Smart Storage Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Paho MQTT -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Feather Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); transition: all 0.3s ease-in-out; }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .btn { transition: all 0.2s ease; }
+        .btn:active { transform: scale(0.95); }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; transition: background-color 0.5s ease; }
+        .status-dot-connected { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .status-dot-disconnected { background-color: #ef4444; }
+        canvas { width: 100% !important; height: auto !important; }
+    </style>
 </head>
-<body>
-  <h1>🌾 AgroMind ESP32 Dashboard</h1>
-  <div class="card">
-    <h2>Live Sensor Data</h2>
-    <p>Temperature: <span id="temp">-</span> °C</p>
-    <p>Humidity: <span id="hum">-</span> %</p>
-    <p>Predicted Storage: <span id="days">-</span> Days</p>
-  </div>
-  <div class="card">
-    <h2>LED Control</h2>
-    <button onclick="controlLED('ON')">ON</button>
-    <button onclick="controlLED('OFF')">OFF</button>
-    <p>Status: <span id="led">UNKNOWN</span></p>
-  </div>
+<body class="antialiased">
+    <div class="min-h-screen p-4 sm:p-6 lg:p-8">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <header class="mb-8">
+                <h1 class="text-3xl md:text-4xl font-bold text-slate-100 flex items-center">
+                    <span class="text-4xl mr-3">🌾</span> AgroMind — Smart Storage Dashboard
+                </h1>
+                <p class="text-slate-400 mt-1">Real-time monitoring and control for optimal crop preservation.</p>
+            </header>
+
+            <!-- Grid -->
+            <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Panel -->
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="card">
+                        <h2 class="text-xl font-semibold text-slate-200 mb-4">Connection Status</h2>
+                        <div class="flex items-center space-x-3">
+                            <div id="status-dot" class="status-dot status-dot-disconnected"></div>
+                            <span id="connection-status" class="font-medium text-slate-300">Connecting...</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">Broker: broker.hivemq.com (WSS)</p>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="text-xl font-semibold text-slate-200 mb-4">Live Sensor Data</h2>
+                        <div class="space-y-5">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3"><i data-feather="thermometer" class="w-6 h-6 text-blue-400"></i><span class="text-lg text-slate-300">Temperature</span></div>
+                                <span id="temp-value" class="text-2xl font-bold text-blue-300">- °C</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3"><i data-feather="droplet" class="w-6 h-6 text-green-400"></i><span class="text-lg text-slate-300">Humidity</span></div>
+                                <span id="hum-value" class="text-2xl font-bold text-green-300">- %</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3"><i data-feather="calendar" class="w-6 h-6 text-amber-400"></i><span class="text-lg text-slate-300">Predicted Storage</span></div>
+                                <span id="days-value" class="text-2xl font-bold text-amber-300">- Days</span>
+                            </div>
+                        </div>
+                        <div class="border-t border-slate-700 mt-5 pt-3 text-right">
+                            <p class="text-xs text-slate-500">Last update: <span id="last-update">N/A</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Charts -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="card">
+                        <h2 class="text-xl font-semibold text-slate-200 mb-4">Temperature Trend (°C)</h2>
+                        <div class="h-64"><canvas id="tempChart"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <h2 class="text-xl font-semibold text-slate-200 mb-4">Humidity Trend (%)</h2>
+                        <div class="h-64"><canvas id="humChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Right Panel: Control & Market -->
+                <div class="lg:col-span-3 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="card md:col-span-2 lg:col-span-1">
+                        <h2 class="text-xl font-semibold text-slate-200 mb-4">LED Control</h2>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-slate-300">Device Status:</span>
+                            <span id="led-status" class="px-3 py-1 text-sm font-bold rounded-full bg-slate-700 text-slate-300">UNKNOWN</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="publishMessage('ON')" class="btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">ON</button>
+                            <button onclick="publishMessage('OFF')" class="btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">OFF</button>
+                            <button onclick="publishMessage('TOGGLE')" class="btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">TOGGLE</button>
+                            <button onclick="publishMessage('STATUS')" class="btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md">STATUS</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="text-xl font-semibold text-slate-200 mb-4">Market Data</h2>
+                        <div>
+                            <label for="market-price" class="block text-sm font-medium text-slate-400">Enter Market Price (₹/kg)</label>
+                            <div class="mt-1 flex rounded-md shadow-sm">
+                                <input type="number" name="market-price" id="market-price" class="flex-1 block w-full rounded-none rounded-l-md bg-slate-900 border-slate-600 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2" placeholder="150.75">
+                                <button class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-slate-600 bg-slate-700 text-slate-300 hover:bg-slate-600">Log</button>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-4">Short-term price prediction: <span class="text-green-400">Trending Up</span></p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="text-xl font-semibold text-slate-200 mb-4">Data Export</h2>
+                        <p class="text-slate-400 mb-4 text-sm">Export the collected sensor data as a CSV file.</p>
+                        <button id="export-csv-btn" class="w-full btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center space-x-2">
+                             <i data-feather="download" class="w-5 h-5"></i>
+                             <span>Export to CSV</span>
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
 
 <script>
-function fetchData() {
-  fetch('/data')
-    .then(response => response.json())
-    .then(data => {
-      document.getElementById('temp').innerText = data.temperature;
-      document.getElementById('hum').innerText = data.humidity;
-      document.getElementById('days').innerText = data.days;
-      document.getElementById('led').innerText = data.led;
-    })
-    .catch(err => console.log(err));
-}
+    // --- DOM Elements ---
+    const statusDot = document.getElementById('status-dot');
+    const connectionStatus = document.getElementById('connection-status');
+    const tempValue = document.getElementById('temp-value');
+    const humValue = document.getElementById('hum-value');
+    const daysValue = document.getElementById('days-value');
+    const ledStatus = document.getElementById('led-status');
+    const lastUpdate = document.getElementById('last-update');
+    const exportCsvBtn = document.getElementById('export-csv-btn');
 
-// Call every 2 seconds
-setInterval(fetchData, 2000);
+    // --- MQTT Config ---
+    const MQTT_BROKER = "broker.hivemq.com";
+    const MQTT_PORT = 8000; // HiveMQ public WSS port
+    const MQTT_CLIENT_ID = "AgroMind_" + Math.random().toString(16).substr(2, 8);
+    const TEMP_TOPIC = "esp32/dht/temp";
+    const HUM_TOPIC = "esp32/dht/hum";
+    const DAYS_TOPIC = "esp32/storage/days";
+    const LED_STATE_TOPIC = "esp32/led/state";
+    const LED_CONTROL_TOPIC = "esp32/led";
 
-function controlLED(state) {
-  fetch('/led?state=' + state)
-    .then(response => fetchData())
-    .catch(err => console.log(err));
-}
+    let client;
+    let tempChart, humChart;
+    const MAX_DATA_POINTS = 20;
+
+    // --- Initialize Charts ---
+    function initializeCharts() {
+        Chart.defaults.color = 'rgba(226, 232, 240, 0.8)';
+        Chart.defaults.borderColor = 'rgba(51, 65, 85, 0.5)';
+
+        const chartConfig = (label, borderColor, backgroundColor) => ({
+            type: 'line',
+            data: { labels: [], datasets: [{ label, data: [], borderColor, backgroundColor, tension: 0.4, fill: true, pointBackgroundColor: borderColor }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { beginAtZero: false, grid: { color: 'rgba(51, 65, 85, 0.8)' } } }, plugins: { legend: { display: false } } }
+        });
+
+        tempChart = new Chart(document.getElementById('tempChart'), chartConfig('Temperature', 'rgba(96, 165, 250, 1)', 'rgba(96, 165, 250, 0.1)'));
+        humChart = new Chart(document.getElementById('humChart'), chartConfig('Humidity', 'rgba(52, 211, 153, 1)', 'rgba(52, 211, 153, 0.1)'));
+    }
+
+    function updateChart(chart, value) {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString();
+        chart.data.labels.push(timeLabel);
+        chart.data.datasets[0].data.push(value);
+        if (chart.data.labels.length > MAX_DATA_POINTS) { chart.data.labels.shift(); chart.data.datasets[0].data.shift(); }
+        chart.update();
+    }
+
+    // --- MQTT Connection ---
+    function connectMQTT() {
+        client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, "/mqtt", MQTT_CLIENT_ID);
+
+        client.onConnectionLost = onConnectionLost;
+        client.onMessageArrived = onMessageArrived;
+
+        client.connect({ useSSL: true, onSuccess: onConnect, onFailure: onFailure, cleanSession: true, reconnect: true });
+    }
+
+    function onConnect() {
+        console.log("Connected to MQTT Broker");
+        updateConnectionStatus(true);
+        client.subscribe(TEMP_TOPIC);
+        client.subscribe(HUM_TOPIC);
+        client.subscribe(DAYS_TOPIC);
+        client.subscribe(LED_STATE_TOPIC);
+        publishMessage("STATUS");
+    }
+
+    function onFailure(e) { console.error("Connection failed: ", e.errorMessage); updateConnectionStatus(false); }
+    function onConnectionLost(responseObject) { if (responseObject.errorCode !== 0) { console.log("Connection lost:", responseObject.errorMessage); updateConnectionStatus(false); } }
+    function updateConnectionStatus(isConnected) { statusDot.className = isConnected ? "status-dot status-dot-connected" : "status-dot status-dot-disconnected"; connectionStatus.textContent = isConnected ? "Connected" : "Disconnected"; }
+
+    function onMessageArrived(message) {
+        const topic = message.destinationName;
+        const payload = message.payloadString;
+        const now = new Date();
+        lastUpdate.textContent = now.toLocaleTimeString();
+
+        try {
+            switch(topic) {
+                case TEMP_TOPIC: const t = parseFloat(payload).toFixed(2); tempValue.textContent = t + " °C"; updateChart(tempChart, t); break;
+                case HUM_TOPIC: const h = parseFloat(payload).toFixed(2); humValue.textContent = h + " %"; updateChart(humChart, h); break;
+                case DAYS_TOPIC: daysValue.textContent = parseInt(payload) + " Days"; break;
+                case LED_STATE_TOPIC: updateLedStatus(payload); break;
+            }
+        } catch(e){ console.error("Message error:", e); }
+    }
+
+    function publishMessage(payload) {
+        if (!client || !client.isConnected()) { alert("Not connected!"); return; }
+        const message = new Paho.MQTT.Message(payload); message.destinationName = LED_CONTROL_TOPIC; client.send(message);
+        console.log("Published:", payload);
+    }
+
+    function updateLedStatus(state) {
+        ledStatus.textContent = state;
+        if (state.toUpperCase() === 'ON') ledStatus.className = 'px-3 py-1 text-sm font-bold rounded-full bg-green-500 text-white';
+        else if (state.toUpperCase() === 'OFF') ledStatus.className = 'px-3 py-1 text-sm font-bold rounded-full bg-red-500 text-white';
+        else ledStatus.className = 'px-3 py-1 text-sm font-bold rounded-full bg-slate-700 text-slate-300';
+    }
+
+    // --- CSV Export ---
+    function exportToCSV() {
+        const headers = "Timestamp,Temperature_C,Humidity_Percent";
+        const tempData = tempChart.data.datasets[0].data;
+        const humData = humChart.data.datasets[0].data;
+        const labels = tempChart.data.labels;
+        if(labels.length === 0){ alert("No data!"); return; }
+        let csvContent = "data:text/csv;charset=utf-8," + headers + "\n";
+        for(let i=0;i<labels.length;i++){ csvContent += [labels[i], tempData[i]||'N/A', humData[i]||'N/A'].join(",") + "\n"; }
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", `agromind_data_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // --- Init ---
+    window.onload = () => {
+        feather.replace();
+        initializeCharts();
+        connectMQTT();
+        exportCsvBtn.addEventListener('click', exportToCSV);
+    };
 </script>
-
 </body>
 </html>
-)rawliteral";
-
-// ======= SETUP =======
-void setup() {
-  Serial.begin(115200);
-  pinMode(LEDPIN, OUTPUT);
-  dht.begin();
-
-  // Connect WiFi
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
-
-  // Serve HTML page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", index_html);
-  });
-
-  // Serve sensor data as JSON
-  server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){
-    temperature = dht.readTemperature();
-    humidity = dht.readHumidity();
-    String ledState = digitalRead(LEDPIN) ? "ON" : "OFF";
-
-    String json = "{";
-    json += "\"temperature\":" + String(temperature,1) + ",";
-    json += "\"humidity\":" + String(humidity,1) + ",";
-    json += "\"days\":" + String(predictedDays) + ",";
-    json += "\"led\":\"" + ledState + "\"";
-    json += "}";
-    
-    request->send(200, "application/json", json);
-  });
-
-  // LED control endpoint
-  server.on("/led", HTTP_GET, [](AsyncWebServerRequest *request){
-    if (request->hasParam("state")) {
-      String state = request->getParam("state")->value();
-      if(state == "ON") digitalWrite(LEDPIN, HIGH);
-      if(state == "OFF") digitalWrite(LEDPIN, LOW);
-    }
-    request->send(200, "text/plain", "OK");
-  });
-
-  server.begin();
-}
-
-// ======= LOOP =======
-void loop() {
-  // nothing needed, AsyncWebServer handles everything
-}
